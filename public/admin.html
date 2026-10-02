@@ -172,6 +172,9 @@ tbody tr:hover td { background: var(--surface); }
 .btn-approve { background: #052718; color: var(--success); border: 1px solid #1a5c3a; }
 .btn-approve:hover { background: #0d3d24; }
 .btn-approve:disabled { opacity: .4; cursor: default; }
+.btn-danger  { background: #2a0a0a; color: #f87171; border: 1px solid #5c1a1a; }
+.btn-danger:hover { background: #3d1212; }
+.btn-danger:disabled { opacity: .4; cursor: default; }
 
 /* ─── Sección de tarifas ──────────────────────────────────────────────────── */
 .tariff-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
@@ -505,12 +508,13 @@ async function renderDrivers() {
                         ${online ? '● En línea' : '○ Offline'}
                       </span>
                     </td>
-                    <td>
+                    <td style="display:flex;gap:6px;flex-wrap:wrap">
                       ${v && !verified
-                        ? `<button class="btn-sm btn-approve" onclick="approveDriver('${d.id}', this)">
-                             Aprobar
-                           </button>`
+                        ? `<button class="btn-sm btn-approve" onclick="approveDriver('${d.id}', this)">✓ Aprobar</button>`
                         : ''}
+                      ${d.active
+                        ? `<button class="btn-sm btn-danger" onclick="setDriverStatus('${d.id}', false, this)">⏸ Suspender</button>`
+                        : `<button class="btn-sm btn-approve" onclick="setDriverStatus('${d.id}', true, this)">▶ Activar</button>`}
                     </td>
                   </tr>`;
                 }).join('')}
@@ -533,7 +537,21 @@ async function approveDriver(id, btn) {
   } catch (e) {
     toast(e.message, 'err');
     btn.disabled = false;
-    btn.textContent = 'Aprobar';
+    btn.textContent = '✓ Aprobar';
+  }
+}
+
+async function setDriverStatus(id, active, btn) {
+  btn.disabled = true;
+  btn.textContent = '…';
+  try {
+    await api('PUT', `/admin/drivers/${id}/status`, { active });
+    toast(active ? 'Conductor activado ✓' : 'Conductor suspendido');
+    renderDrivers();
+  } catch (e) {
+    toast(e.message, 'err');
+    btn.disabled = false;
+    btn.textContent = active ? '▶ Activar' : '⏸ Suspender';
   }
 }
 

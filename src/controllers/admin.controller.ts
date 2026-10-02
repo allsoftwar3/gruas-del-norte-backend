@@ -51,6 +51,21 @@ export async function approveDriver(req: Request, res: Response): Promise<void> 
   res.json(user)
 }
 
+export async function setDriverStatus(req: Request, res: Response): Promise<void> {
+  const id = String(req.params.id)
+  const { active } = req.body as { active: boolean }
+  if (typeof active !== 'boolean') {
+    res.status(400).json({ error: 'Se requiere { active: boolean }' })
+    return
+  }
+  const user = await prisma.user.update({
+    where: { id },
+    data:  { active },
+    select: { id: true, name: true, active: true },
+  })
+  res.json(user)
+}
+
 export async function getTariffs(_req: Request, res: Response): Promise<void> {
   const tariffs = await prisma.tariff.findMany()
   res.json(tariffs)
