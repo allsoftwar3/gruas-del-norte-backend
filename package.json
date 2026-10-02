@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "Backend para Grúas del Norte — API REST + WebSocket",
   "main": "dist/app.js",
+  "prisma": {
+    "seed": "ts-node --transpile-only prisma/seed.ts"
+  },
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/app.ts",
     "build": "tsc",
@@ -26,6 +29,8 @@
     "morgan": "^1.10.0",
     "socket.io": "^4.8.1",
     "stripe": "^17.3.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.6.3",
     "zod": "^3.23.8"
   },
   "devDependencies": {
