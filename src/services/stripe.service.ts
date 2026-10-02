@@ -1,22 +1,25 @@
 import Stripe from 'stripe'
 import prisma from '../utils/prisma'
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-02-24.acacia',
-})
+function getStripe(): Stripe {
+  const key = process.env.STRIPE_SECRET_KEY
+  if (!key || key.startsWith('sk_test_...')) {
+    throw new Error('STRIPE_SECRET_KEY no configurada')
+  }
+  return new Stripe(key, { apiVersion: '2025-02-24.acacia' })
+}
 
 export async function createPaymentIntent(orderId: string) {
   const order = await prisma.order.findUniqueOrThrow({ where: { id: orderId } })
 
   if (order.stripePaymentIntentId) {
-    // Reutilizar intent existente
-    const intent = await stripe.paymentIntents.retrieve(order.stripePaymentIntentId)
+    const intent = await getStripe().paymentIntents.retrieve(order.stripePaymentIntentId)
     return { clientSecret: intent.client_secret!, paymentIntentId: intent.id }
   }
 
   const amountCentavos = Math.round(order.totalPrice * 100)
 
-  const intent = await stripe.paymentIntents.create({
+  const intent = await getStripe().paymentIntents.create({
     amount:   amountCentavos,
     currency: process.env.STRIPE_CURRENCY ?? 'mxn',
     metadata: { orderId },
@@ -34,7 +37,7 @@ export async function createPaymentIntent(orderId: string) {
 }
 
 export async function handleWebhook(payload: Buffer, signature: string) {
-  const event = stripe.webhooks.constructEvent(
+  const event = getStripe().webhooks.constructEvent(
     payload,
     signature,
     process.env.STRIPE_WEBHOOK_SECRET!,
@@ -70,7 +73,7 @@ export async function refundOrder(orderId: string) {
     throw new Error('No hay pago completado para reembolsar')
   }
 
-  const refund = await stripe.refunds.create({
+  const refund = await getStripe().refunds.create({
     payment_intent: order.stripePaymentIntentId,
   })
 
