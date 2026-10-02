@@ -508,13 +508,15 @@ async function renderDrivers() {
                         ${online ? '● En línea' : '○ Offline'}
                       </span>
                     </td>
-                    <td style="display:flex;gap:6px;flex-wrap:wrap">
-                      ${v && !verified
-                        ? `<button class="btn-sm btn-approve" onclick="approveDriver('${d.id}', this)">✓ Aprobar</button>`
-                        : ''}
-                      ${d.active
-                        ? `<button class="btn-sm btn-danger" onclick="setDriverStatus('${d.id}', false, this)">⏸ Suspender</button>`
-                        : `<button class="btn-sm btn-approve" onclick="setDriverStatus('${d.id}', true, this)">▶ Activar</button>`}
+                    <td>
+                      <div style="display:flex;gap:6px;flex-wrap:wrap;min-width:120px">
+                        ${v && !verified
+                          ? `<button class="btn-sm btn-approve" onclick="approveDriver('${d.id}', this)">✓ Aprobar</button>`
+                          : ''}
+                        ${d.active
+                          ? `<button class="btn-sm btn-danger" onclick="setDriverStatus('${d.id}', false, this)">⏸ Suspender</button>`
+                          : `<button class="btn-sm btn-approve" onclick="setDriverStatus('${d.id}', true, this)">▶ Activar</button>`}
+                      </div>
                     </td>
                   </tr>`;
                 }).join('')}
