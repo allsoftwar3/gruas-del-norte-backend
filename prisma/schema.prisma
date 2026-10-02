@@ -1,0 +1,140 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  phone        String?  @unique
+  email        String?  @unique
+  passwordHash String
+  role         Role     @default(CLIENT)
+  profilePic   String?
+  active       Boolean  @default(true)
+  fcmToken     String?
+  createdAt    DateTime @default(now())
+
+  clientOrders    Order[]  @relation("ClientOrders")
+  driverOrders    Order[]  @relation("DriverOrders")
+  vehicle         Vehicle?
+  ratingsGiven    Rating[] @relation("RatingsGiven")
+  ratingsReceived Rating[] @relation("RatingsReceived")
+  driverStatus    DriverStatus?
+}
+
+enum Role {
+  CLIENT
+  DRIVER
+  ADMIN
+}
+
+model Vehicle {
+  id       String      @id @default(cuid())
+  driverId String      @unique
+  driver   User        @relation(fields: [driverId], references: [id])
+  type     VehicleType
+  brand    String
+  model    String
+  year     Int
+  plates   String
+  photo    String?
+  verified Boolean     @default(false)
+}
+
+enum VehicleType {
+  SIMPLE
+  PLATFORM
+  HEAVY
+}
+
+model DriverStatus {
+  id          String   @id @default(cuid())
+  driverId    String   @unique
+  driver      User     @relation(fields: [driverId], references: [id])
+  available   Boolean  @default(false)
+  currentLat  Float?
+  currentLng  Float?
+  updatedAt   DateTime @updatedAt
+}
+
+model Order {
+  id              String        @id @default(cuid())
+  clientId        String
+  client          User          @relation("ClientOrders", fields: [clientId], references: [id])
+  driverId        String?
+  driver          User?         @relation("DriverOrders", fields: [driverId], references: [id])
+  vehicleType     VehicleType
+  status          OrderStatus   @default(SEARCHING)
+  originLat       Float
+  originLng       Float
+  originAddress   String
+  destLat         Float
+  destLng         Float
+  destAddress     String
+  distanceKm      Float
+  basePrice       Float
+  kmPrice         Float
+  totalPrice      Float
+  paymentStatus   PaymentStatus @default(PENDING)
+  paymentMethod   String?
+  stripePaymentIntentId String?
+  stripeClientSecret    String?
+  createdAt       DateTime      @default(now())
+  acceptedAt      DateTime?
+  completedAt     DateTime?
+
+  locationHistory LocationHistory[]
+  rating          Rating?
+}
+
+enum OrderStatus {
+  SEARCHING
+  ACCEPTED
+  DRIVER_ARRIVING
+  IN_SERVICE
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+model LocationHistory {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id])
+  driverId  String
+  lat       Float
+  lng       Float
+  timestamp DateTime @default(now())
+}
+
+model Rating {
+  id         String   @id @default(cuid())
+  orderId    String   @unique
+  order      Order    @relation(fields: [orderId], references: [id])
+  fromUserId String
+  fromUser   User     @relation("RatingsGiven", fields: [fromUserId], references: [id])
+  toUserId   String
+  toUser     User     @relation("RatingsReceived", fields: [toUserId], references: [id])
+  stars      Int
+  comment    String?
+  createdAt  DateTime @default(now())
+}
+
+model Tariff {
+  id          String      @id @default(cuid())
+  vehicleType VehicleType @unique
+  basePrice   Float
+  pricePerKm  Float
+  updatedAt   DateTime    @updatedAt
+}
