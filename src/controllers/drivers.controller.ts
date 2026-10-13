@@ -78,6 +78,72 @@ export async function getMyStats(req: Request, res: Response): Promise<void> {
   })
 }
 
+export async function updateClabe(req: Request, res: Response): Promise<void> {
+  const { clabe } = z.object({
+    clabe: z.string().regex(/^\d{18}$/, 'La CLABE debe tener exactamente 18 dígitos'),
+  }).parse(req.body)
+
+  await prisma.user.update({
+    where: { id: req.user!.userId },
+    data:  { clabe },
+  })
+  res.json({ ok: true })
+}
+
+export async function getMyEarnings(req: Request, res: Response): Promise<void> {
+  const driverId = req.user!.userId
+
+  const now   = new Date()
+  const startOfWeek = new Date(now)
+  startOfWeek.setDate(now.getDate() - now.getDay())
+  startOfWeek.setHours(0, 0, 0, 0)
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
+
+  const [total, week, month, ratings] = await Promise.all([
+    prisma.order.aggregate({
+      where: { driverId, status: 'COMPLETED' },
+      _sum: { totalPrice: true }, _count: { id: true },
+    }),
+    prisma.order.aggregate({
+      where: { driverId, status: 'COMPLETED', completedAt: { gte: startOfWeek } },
+      _sum: { totalPrice: true },
+    }),
+    prisma.order.aggregate({
+      where: { driverId, status: 'COMPLETED', completedAt: { gte: startOfMonth } },
+      _sum: { totalPrice: true },
+    }),
+    prisma.rating.aggregate({
+      where: { toUserId: driverId },
+      _avg: { stars: true }, _count: { id: true },
+    }),
+  ])
+
+  const user = await prisma.user.findUnique({
+    where:  { id: driverId },
+    select: { clabe: true },
+  })
+
+  res.json({
+    totalEarnings:   total._sum.totalPrice  ?? 0,
+    totalServices:   total._count.id,
+    weekEarnings:    week._sum.totalPrice   ?? 0,
+    monthEarnings:   month._sum.totalPrice  ?? 0,
+    avgRating:       ratings._avg.stars     ?? 0,
+    totalRatings:    ratings._count.id,
+    clabe:           user?.clabe ?? null,
+  })
+}
+
+export async function getMyRatings(req: Request, res: Response): Promise<void> {
+  const ratings = await prisma.rating.findMany({
+    where:   { toUserId: req.user!.userId },
+    orderBy: { createdAt: 'desc' },
+    take:    20,
+    include: { fromUser: { select: { name: true } } },
+  })
+  res.json(ratings)
+}
+
 export async function getAvailableDrivers(req: Request, res: Response): Promise<void> {
   const { vehicleType } = z.object({ vehicleType: z.nativeEnum(VehicleType) }).parse(req.query)
 

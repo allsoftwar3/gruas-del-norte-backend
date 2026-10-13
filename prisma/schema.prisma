@@ -15,6 +15,7 @@ model User {
   passwordHash String
   role         Role     @default(CLIENT)
   profilePic   String?
+  clabe        String?
   active       Boolean  @default(true)
   fcmToken     String?
   createdAt    DateTime @default(now())
