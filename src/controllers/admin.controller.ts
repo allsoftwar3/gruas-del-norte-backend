@@ -91,6 +91,32 @@ export async function updateTariff(req: Request, res: Response): Promise<void> {
   res.json(tariff)
 }
 
+export async function updateOrderStatus(req: Request, res: Response): Promise<void> {
+  const id     = String(req.params.id)
+  const { status, paymentStatus } = req.body as { status?: string; paymentStatus?: string }
+  const validStatus  = ['SEARCHING','ACCEPTED','DRIVER_ARRIVING','IN_SERVICE','COMPLETED','CANCELLED']
+  const validPayment = ['PENDING','PAID','FAILED','REFUNDED']
+
+  if (status && !validStatus.includes(status)) {
+    res.status(400).json({ error: `status inválido. Valores: ${validStatus.join(', ')}` }); return
+  }
+  if (paymentStatus && !validPayment.includes(paymentStatus)) {
+    res.status(400).json({ error: `paymentStatus inválido. Valores: ${validPayment.join(', ')}` }); return
+  }
+
+  const data: Record<string, any> = {}
+  if (status)        data.status        = status
+  if (paymentStatus) data.paymentStatus = paymentStatus
+  if (status === 'COMPLETED') data.completedAt = new Date()
+
+  const order = await prisma.order.update({
+    where: { id },
+    data,
+    select: { id: true, status: true, paymentStatus: true, totalPrice: true },
+  })
+  res.json(order)
+}
+
 export async function getStats(_req: Request, res: Response): Promise<void> {
   const hoy = new Date()
   hoy.setHours(0, 0, 0, 0)
