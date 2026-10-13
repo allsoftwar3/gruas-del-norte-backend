@@ -404,8 +404,11 @@ function render(page) {
 }
 
 // ─── Dashboard ───────────────────────────────────────────────────────────────
-async function renderDashboard() {
+async function renderDashboard(attempt = 1) {
   const main = document.getElementById('main-panel');
+  if (attempt === 1) {
+    main.innerHTML = `<div class="content"><div class="empty" style="opacity:.5">Cargando…</div></div>`;
+  }
   try {
     const s = await api('GET', '/admin/stats');
     main.innerHTML = `
@@ -444,7 +447,17 @@ async function renderDashboard() {
         </div>
       </div>`;
   } catch (e) {
-    main.innerHTML = `<div class="content"><div class="empty">Error: ${e.message}</div></div>`;
+    if (attempt < 3) {
+      // reintenta automáticamente — el servidor puede estar despertando
+      setTimeout(() => renderDashboard(attempt + 1), 2500);
+      main.innerHTML = `<div class="content"><div class="empty" style="opacity:.5">Conectando con el servidor… (intento ${attempt}/3)</div></div>`;
+    } else {
+      main.innerHTML = `<div class="content"><div class="empty">
+        No se pudo cargar el dashboard.<br>
+        <button class="btn-sm" style="margin-top:12px;background:var(--raised);color:var(--text)"
+          onclick="renderDashboard()">↻ Reintentar</button>
+      </div></div>`;
+    }
   }
 }
 
