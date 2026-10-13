@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Grúas del Norte — Admin</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 /* ─── Tokens ──────────────────────────────────────────────────────────────── */
 :root {
@@ -475,8 +476,12 @@ async function renderDrivers(attempt = 1) {
           <h1>Conductores</h1>
           <div class="sub">${drivers.length} registrados · ${pending} pendientes de verificación</div>
         </div>
-        <button class="btn-sm" style="background:var(--raised);color:var(--text)"
-          onclick="renderDrivers()">↻ Actualizar</button>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="btn-sm" style="background:var(--raised);color:var(--text)"
+            onclick="renderDrivers()">↻ Actualizar</button>
+          <button class="btn-sm" style="background:#1D6F42;color:#fff;font-weight:600"
+            onclick="exportDriversExcel()">⬇ Excel</button>
+        </div>
       </header>
       <div class="content">
         <div class="table-wrap">
@@ -601,8 +606,12 @@ async function renderOrders(page, status, attempt = 1) {
           <h1>Órdenes</h1>
           <div class="sub">${res.total} en total</div>
         </div>
-        <button class="btn-sm" style="background:var(--raised);color:var(--text)"
-          onclick="renderOrders()">↻ Actualizar</button>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="btn-sm" style="background:var(--raised);color:var(--text)"
+            onclick="renderOrders()">↻ Actualizar</button>
+          <button class="btn-sm" style="background:#1D6F42;color:#fff;font-weight:600"
+            onclick="exportOrdersExcel()">⬇ Excel</button>
+        </div>
       </header>
       <div class="content">
         <div class="toolbar">
@@ -859,6 +868,90 @@ function esc(s) {
     })
     .catch(() => clearToken());
 })();
+
+// ─── Export Excel ─────────────────────────────────────────────────────────────
+async function exportOrdersExcel() {
+  const btn = event.target;
+  btn.disabled = true; btn.textContent = '⏳ Exportando…';
+  try {
+    const res = await api('GET', `/admin/orders?page=1&limit=9999${orderStatus ? '&status=' + orderStatus : ''}`);
+    const STATUS_ES = { SEARCHING:'Buscando', ACCEPTED:'Aceptada', DRIVER_ARRIVING:'En camino',
+                        IN_SERVICE:'En servicio', COMPLETED:'Completada', CANCELLED:'Cancelada' };
+    const PAY_ES   = { PENDING:'Pendiente', PAID:'Pagada', FAILED:'Fallida', REFUNDED:'Reembolsada' };
+    const VTYPE_ES = { SIMPLE:'Grúa Simple', PLATFORM:'Plataforma', HEAVY:'Grúa Pesada' };
+
+    const rows = res.orders.map(o => ({
+      'ID':            o.id,
+      'Fecha':         new Date(o.createdAt).toLocaleString('es-MX'),
+      'Cliente':       o.client?.name || '—',
+      'Conductor':     o.driver?.name  || '—',
+      'Tipo vehículo': VTYPE_ES[o.vehicleType] || o.vehicleType,
+      'Origen':        o.originAddress,
+      'Destino':       o.destAddress,
+      'Distancia km':  o.distanceKm,
+      'Precio base':   o.basePrice,
+      'Precio/km':     o.kmPrice,
+      'Total MXN':     o.totalPrice,
+      'Estado':        STATUS_ES[o.status]        || o.status,
+      'Pago':          PAY_ES[o.paymentStatus]    || o.paymentStatus,
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    // Ancho de columnas
+    ws['!cols'] = [
+      {wch:28},{wch:20},{wch:22},{wch:22},{wch:16},{wch:36},{wch:36},
+      {wch:12},{wch:12},{wch:10},{wch:12},{wch:14},{wch:12},
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Órdenes');
+    const fecha = new Date().toLocaleDateString('es-MX').replace(/\//g,'-');
+    XLSX.writeFile(wb, `GruasDelNorte_Ordenes_${fecha}.xlsx`);
+    toast(`${res.orders.length} órdenes exportadas ✓`);
+  } catch(e) {
+    toast('Error al exportar: ' + e.message, 'err');
+  } finally {
+    btn.disabled = false; btn.textContent = '⬇ Excel';
+  }
+}
+
+async function exportDriversExcel() {
+  const btn = event.target;
+  btn.disabled = true; btn.textContent = '⏳ Exportando…';
+  try {
+    const drivers = await api('GET', '/admin/drivers');
+    const VTYPE_ES = { SIMPLE:'Grúa Simple', PLATFORM:'Plataforma', HEAVY:'Grúa Pesada' };
+
+    const rows = drivers.map(d => ({
+      'ID':             d.id,
+      'Nombre':         d.name,
+      'Correo':         d.email  || '—',
+      'Teléfono':       d.phone  || '—',
+      'Estado cuenta':  d.active ? 'Activo' : 'Suspendido',
+      'En línea':       d.driverStatus?.available ? 'Sí' : 'No',
+      'Vehículo tipo':  d.vehicle ? (VTYPE_ES[d.vehicle.type] || d.vehicle.type) : '—',
+      'Marca':          d.vehicle?.brand  || '—',
+      'Modelo':         d.vehicle?.model  || '—',
+      'Año':            d.vehicle?.year   || '—',
+      'Placas':         d.vehicle?.plates || '—',
+      'Vehículo verificado': d.vehicle?.verified ? 'Sí' : 'No',
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = [
+      {wch:28},{wch:24},{wch:28},{wch:14},{wch:16},{wch:10},
+      {wch:16},{wch:14},{wch:14},{wch:8},{wch:12},{wch:20},
+    ];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Conductores');
+    const fecha = new Date().toLocaleDateString('es-MX').replace(/\//g,'-');
+    XLSX.writeFile(wb, `GruasDelNorte_Conductores_${fecha}.xlsx`);
+    toast(`${drivers.length} conductores exportados ✓`);
+  } catch(e) {
+    toast('Error al exportar: ' + e.message, 'err');
+  } finally {
+    btn.disabled = false; btn.textContent = '⬇ Excel';
+  }
+}
 </script>
 </body>
 </html>
