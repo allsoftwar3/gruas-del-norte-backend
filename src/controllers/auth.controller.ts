@@ -33,7 +33,7 @@ function signToken(userId: string, role: string) {
 export async function register(req: Request, res: Response): Promise<void> {
   const parsed = RegisterSchema.safeParse(req.body)
   if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.errors })
+    res.status(400).json({ error: parsed.error.errors.map(e => e.message).join(', ') })
     return
   }
 
@@ -66,7 +66,7 @@ export async function register(req: Request, res: Response): Promise<void> {
 export async function login(req: Request, res: Response): Promise<void> {
   const parsed = LoginSchema.safeParse(req.body)
   if (!parsed.success) {
-    res.status(400).json({ error: parsed.error.errors })
+    res.status(400).json({ error: parsed.error.errors.map(e => e.message).join(', ') })
     return
   }
 
