@@ -464,7 +464,7 @@ async function renderDashboard(attempt = 1) {
 }
 
 // ─── Drivers ─────────────────────────────────────────────────────────────────
-async function renderDrivers() {
+async function renderDrivers(attempt = 1) {
   const main = document.getElementById('main-panel');
   try {
     const drivers = await api('GET', '/admin/drivers');
@@ -540,7 +540,12 @@ async function renderDrivers() {
         </div>
       </div>`;
   } catch (e) {
-    main.innerHTML = `<div class="content"><div class="empty">Error: ${e.message}</div></div>`;
+    if (attempt < 3) {
+      setTimeout(() => renderDrivers(attempt + 1), 2500);
+      main.innerHTML = `<div class="content"><div class="empty" style="opacity:.5">Conectando… (intento ${attempt}/3)</div></div>`;
+    } else {
+      main.innerHTML = `<div class="content"><div class="empty">Error: ${e.message} <button class="btn-sm" style="margin-left:8px" onclick="renderDrivers()">↻ Reintentar</button></div></div>`;
+    }
   }
 }
 
@@ -582,7 +587,7 @@ const STATUS_LABELS = {
   CANCELLED:       ['badge-red',    'Cancelada'],
 };
 
-async function renderOrders(page, status) {
+async function renderOrders(page, status, attempt = 1) {
   if (page   !== undefined) orderPage   = page;
   if (status !== undefined) orderStatus = status;
   const main = document.getElementById('main-panel');
@@ -651,7 +656,12 @@ async function renderOrders(page, status) {
         </div>
       </div>`;
   } catch (e) {
-    main.innerHTML = `<div class="content"><div class="empty">Error: ${e.message}</div></div>`;
+    if (attempt < 3) {
+      setTimeout(() => renderOrders(undefined, undefined, attempt + 1), 2500);
+      main.innerHTML = `<div class="content"><div class="empty" style="opacity:.5">Conectando… (intento ${attempt}/3)</div></div>`;
+    } else {
+      main.innerHTML = `<div class="content"><div class="empty">Error: ${e.message} <button class="btn-sm" style="margin-left:8px" onclick="renderOrders()">↻ Reintentar</button></div></div>`;
+    }
   }
 }
 
